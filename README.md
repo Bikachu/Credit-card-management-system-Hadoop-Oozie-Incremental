@@ -6,7 +6,7 @@ This project use oozie &amp; sqoop incremental job to only import the updated da
 1. create only static external table, no dynamic table is created.
 
 
-2. Sqoop job can only incremental importing the updated data, E.X:
+2. Sqoop job can only incrementally importing the updated data, E.X:
                       
                       sqoop job 
                       -Dorg.apache.sqoop.splitter.allow_text_splitter=true
