@@ -3,30 +3,99 @@ This project use oozie &amp; sqoop incremental job to only import the updated da
 
 
 ------
-1. create only static external table, no dynamic table is created.
+
+---------
+How to test this project:
+
+1. Open sqoopmetastore and create four jobs:
+                                            
+                                            BranchJobAppend
+                                            CreditcardJobAppend
+                                            CustomerJobAppend
+                                            TimeJobAppend
+ 
+ For the BranchJobAppend:
+ 
+     -use incremental lastmodified
+     -The check-column is LAST_UPDATED. It is a timestamp column
+     
+ For the CustomerJobAppend:
+ 
+     -use incremental lastmodified
+     -The check-column is LAST_UPDATED. It is a timestamp column
+     
+ For the CreditcardJobAppend:
+ 
+     -use incremental append
+     -The check-column is TRASANCTION_ID
+     -So if you want to insert data into CDW_SAPP_D_CREDIT_CARD, The TRASACTION_ID must larger than 46694,
+     
+  EX:
+  
+                    insert into CDW_SAPP_CREDITCARD
+                   (TRANSACTION_ID,DAY,MONTH,YEAR,BRANCH_CODE,TRANSACTION_TYPE, TRANSACTION_VALUE)
+                    VALUES
+                   (46695,31,7,2018,114,'BILLS','23.456');
+     
+  For the TimeJobAppend:
+  
+      -use incremental append
+      -the check-column is 'TIMEID'
+      -If you change the CREDITCARD table, it will shown changed in TIME table too 
+     
+     
+2. create CREDIT_CARD_OOZIE_APPEND under maria_dev, 
+
+   and  
+   
+                                    BRANCH_workflow
+                                    BRANCH_coordinator
+                                    CREDITCARD_workflow
+                                    CREDITCARD_coordinator
+                                    CUSTOMER_workflow
+                                    CUSTOMER_coordinator
+                                    TIME_workflow
+                                    TIME_coordinator
+    
+  under CREDIT_CARD_OOZIE_APPEND.
+
+3. Each workflow folder contains 3 files, take BRANCH as an example:
 
 
-2. Sqoop job can only incrementally importing the updated data, E.X:
-                      
-                      sqoop job 
-                      -Dorg.apache.sqoop.splitter.allow_text_splitter=true
-                      --meta-connect jdbc:hsqldb:hsql://localhost:16000/sqoop 
-                      --create BranchJobAppend
-                      -- import 
-                      --m 1
-                      --connect jdbc:mysql://localhost/JDBC
-                      --driver com.mysql.jdbc.Driver 
-                      --append
-                      --query  
-                      " SELECT BRANCH_CODE, BRANCH_NAME, BRANCH_STREET, BRANCH_CITY, BRANCH_STATE, BRANCH_ZIP, (select concat( '(',(select                          substring(BRANCH_PHONE, 1, 3)), ')', (select substring(BRANCH_PHONE, 4,3)), '-',(select substring(BRANCH_PHONE, 7, 3)))), LAST_UPDATED FROM CDW_SAPP_BRANCH WHERE \$CONDITIONS " 
-                      --split-by BRANCH_CODE
-                      --incremental lastmodified
-                      --check-column LAST_UPDATED
-                      --last-value '2017-04-18 15:51:47'
-                      --target-dir /user/maria_dev/CREDIT_CARD_SYSTEM/CDW_SAPP_BRANCH_APPEND/
-                      --fields-terminated-by ','
-                      
-3. As a result, the Hive table only contains the new data but not the old data.
+                  CDW_SAPP_D_BRANCH.HIVE
+                  BRANCH_job.properties
+                  BRANCH_workflow.xml
+                  BRANCH_job.properties: 
+
+ Execute Branch_job.properties:                  
+ 
+                  oozie job -oozie http://localhost:11000/oozie -config BRANCH_job.properties -run
+ 
+ After you execute the workflow, the oozie job will execute the BranchJobAppend for the first time, then build CDW_SAPP_D_BRANCH.
+ This workflow has no coordinator so it only executes once.
+ 
+ ------
+ ----
+ YOU must run BRANCH_job.properties first BEFORE you run BRANCH_job_append.properties!!!
+ -----
+ 
+ 
+  Each coordinator folder contains 4 files, take BRANCH as an example:
+   
+                  BRANCH_coordinator_append.xml
+                  BRANCH_copydata_append.hql
+                  BRANCH_job_append.properties
+                  BRANCH_workflow_append.xml
+   
+  Execute BRANCH_job_append.properties:
+            
+                  oozie job -oozie http://localhost:11000/oozie -config BRANCH_workflow_job.properties -run
+                
+After execute the BRANCH_workflow, the sqoop job is alreay ran once, so when the sqoop job running the second time, it will only import the updated/inserted new file to HDFS, and then Hive will move that file to the CDW_SAPP_D_BRANCH's directory.
+The BRANCH_workflow_append.xml will implement this requirement.
 
 
-4. The coordinator is the same with Project Credit-card-management-system-Hadoop-Oozie
+ 
+             
+                  
+
