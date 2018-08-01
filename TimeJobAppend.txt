@@ -1,0 +1,31 @@
+sqoop job 
+-Dorg.apache.sqoop.splitter.allow_text_splitter=true
+--meta-connect jdbc:hsqldb:hsql://localhost:16000/sqoop 
+--create TimeJobAppend
+-- import
+--m 1
+--connect jdbc:mysql://localhost/JDBC
+--driver com.mysql.jdbc.Driver 
+--append
+--query  
+" SELECT  A.TIMEID,
+          A.DAY,
+          A.MONTH,
+          A.QUARTER,
+          A.YEAR
+  FROM (SELECT CAST(CONCAT(YEAR, LPAD(MONTH,2,'0'), LPAD(DAY,2,'0')) AS UNSIGNED) AS TIMEID,
+        DAY,
+        MONTH,
+        (CASE WHEN MONTH<=3 AND MONTH >0 THEN 'QUARTER1'
+			            WHEN MONTH>3 AND MONTH<=6 THEN 'QUARTER2' 
+			            WHEN MONTH>6 AND MONTH<=9 THEN 'QUARTER3' 
+			            WHEN MONTH>9 AND MONTH<=12 THEN 'QUARTER4'
+		           END) AS QUARTER,
+		YEAR
+		FROM CDW_SAPP_CREDITCARD) A WHERE \$CONDITIONS "
+--split-by DAY
+--incremental append
+--check-column TIMEID
+--last-value '20180101'
+--target-dir /user/maria_dev/CREDIT_CARD_SYSTEM/CDW_SAPP_TIME_APPEND/
+--fields-terminated-by ','

@@ -1,0 +1,16 @@
+drop table CDW_SAPP_D_TIME;
+
+create external table CDW_SAPP_D_TIME
+(TIMEID string,
+ DAY string,
+ MONTH string,
+ QUARTER string,
+ YEAR string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' 
+ESCAPED BY '"' LINES TERMINATED BY '\n'
+location "/user/maria_dev/CREDIT_CARD_HIVE_TABLES/CDW_SAPP_TIME_APPEND";
+
+load data inpath "/user/maria_dev/CREDIT_CARD_SYSTEM/CDW_SAPP_TIME_APPEND/"
+overwrite into table CDW_SAPP_D_TIME;
+
+
